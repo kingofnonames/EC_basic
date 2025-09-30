@@ -53,16 +53,23 @@ class TSP_GA:
         ranked = sorted(self.population, key=lambda x: self.fitness(x), reverse=True)
         N = len(ranked)
         ranks = np.arange(1, N+1)[::-1]
-        prob = ranks / sum(ranks)
-        rng_point = rng.uniform()
-        idx = 0
-        tmp = 0
-        while tmp < rng_point:
-            tmp += prob[idx]
-            if rng_point <= tmp:
-                break
-            idx += 1
+        probs = ranks / sum(ranks)
+        idx = rng.choice(range(len(ranked)), p=probs)
         return ranked[idx].copy()
+    
+    def tournament_selection(self, k=5):
+        candidates = rng.choice(self.population, size=k, replace=False)
+        par = max(candidates, key=self.fitness)
+        return par.copy()
+
+    def roulette_selection(self):
+        sum_fitness = sum([self.fitness(pop) for pop in self.population])
+        prob_fitness = [self.fitness(pop) for pop in self.population] / sum_fitness
+        idx = rng.choice(range(len(self.population)), p=prob_fitness)
+        return self.population[idx].copy()
+
+    def selection_op(self):
+        return getattr(self, f"{self.selection}_selection")()
 
     def ox(self, par1, par2):
         N = self.num_cities
@@ -165,8 +172,8 @@ class TSP_GA:
                 new_pop.append(self.population[i].copy())
 
             while len(new_pop) < pop_size:
-                p1 = self.rank_selection()
-                p2 = self.rank_selection()
+                p1 = self.selection_op()
+                p2 = self.selection_op()
                 if rng.random() < pc:
                     c1 = self.crossover_op(p1, p2)
                     c2 = self.crossover_op(p2, p1)
@@ -203,7 +210,7 @@ if __name__ == "__main__":
     with open(r"tsp_data.tsp", encoding="utf-8") as f:
         for line in f.readlines():
             cities.append(np.array(list(map(int, line.split())))[1:])
-    tsp_solver = TSP_GA(cities, mutation="inversion", crossover="cx")
+    tsp_solver = TSP_GA(cities, mutation="inversion", crossover="cx", selection="rank")
     best_cost, best_tour = tsp_solver.solve(
         generations=500,
         pop_size=100,
