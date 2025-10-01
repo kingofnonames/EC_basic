@@ -1,6 +1,6 @@
 import numpy as np
 
-rng = np.random.default_rng(seed=7)
+rng = np.random.default_rng(seed=22)
 def euclid_distance(a, b):
     return np.linalg.norm(a - b)
 
@@ -38,6 +38,7 @@ class TSP_GA:
         self.population = None
         self.best_tour = None
         self.best_cost = np.inf
+        self.fitnesses = None
 
     def init_population(self, pop_size=100):
         return np.array([rng.permutation(self.num_cities) for _ in range(pop_size)], dtype=np.int64)
@@ -50,12 +51,11 @@ class TSP_GA:
         return 1.0 / (self.cost_computation(tour) + alpha)
 
     def rank_selection(self):
-        ranked = sorted(self.population, key=lambda x: self.fitness(x), reverse=True)
-        N = len(ranked)
-        ranks = np.arange(1, N+1)[::-1]
+        sorted_idx = np.argsort(self.fitnesses)
+        ranks = np.arange(start=1, stop=(len(self.population) + 1))
         probs = ranks / sum(ranks)
-        idx = rng.choice(range(len(ranked)), p=probs)
-        return ranked[idx].copy()
+        idx = rng.choice(range(len(sorted_idx)), p=probs)
+        return self.population[sorted_idx[idx]].copy()
     
     def tournament_selection(self, k=5):
         candidates = rng.choice(self.population, size=k, replace=False)
@@ -63,8 +63,8 @@ class TSP_GA:
         return par.copy()
 
     def roulette_selection(self):
-        sum_fitness = sum([self.fitness(pop) for pop in self.population])
-        prob_fitness = [self.fitness(pop) for pop in self.population] / sum_fitness
+        sum_fitness = sum(self.fitnesses)
+        prob_fitness = [self.fitnesses[pop] for pop in range(len(self.population))] / sum_fitness
         idx = rng.choice(range(len(self.population)), p=prob_fitness)
         return self.population[idx].copy()
 
@@ -129,9 +129,10 @@ class TSP_GA:
 
     def insert_mutation(self, par):
         N = self.num_cities
-        c1, pos_new = sorted(rng.choice(N, size=2, replace=False))
+        c1 = rng.integers(N)  
         city = par[c1]
         par = np.delete(par, c1)
+        pos_new = rng.integers(len(par)+1)
         par = np.insert(par, pos_new, city)
         return par
 
@@ -166,6 +167,7 @@ class TSP_GA:
         self.best_cost = costs[idx_best]
 
         for gen in range(generations):
+            self.fitnesses = [self.fitness(pop) for pop in self.population]
             new_pop = []
             elite_idx = np.argsort([self.fitness(t) for t in self.population])[-elitism:]
             for i in elite_idx:
@@ -210,7 +212,7 @@ if __name__ == "__main__":
     with open(r"tsp_data.tsp", encoding="utf-8") as f:
         for line in f.readlines():
             cities.append(np.array(list(map(int, line.split())))[1:])
-    tsp_solver = TSP_GA(cities, mutation="inversion", crossover="cx", selection="rank")
+    tsp_solver = TSP_GA(cities, mutation="swap", crossover="ox", selection="tournament")
     best_cost, best_tour = tsp_solver.solve(
         generations=500,
         pop_size=100,
