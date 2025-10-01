@@ -63,9 +63,9 @@ class TSP_GA:
         return par.copy()
 
     def roulette_selection(self):
-        sum_fitness = sum(self.fitnesses)
-        prob_fitness = [self.fitnesses[pop] for pop in range(len(self.population))] / sum_fitness
-        idx = rng.choice(range(len(self.population)), p=prob_fitness)
+        fitness_arr = np.array(self.fitnesses, dtype=float)
+        probs = fitness_arr / fitness_arr.sum()
+        idx = rng.choice(range(len(self.population)), p=probs)
         return self.population[idx].copy()
 
     def selection_op(self):
@@ -212,7 +212,7 @@ if __name__ == "__main__":
     with open(r"tsp_data.tsp", encoding="utf-8") as f:
         for line in f.readlines():
             cities.append(np.array(list(map(int, line.split())))[1:])
-    tsp_solver = TSP_GA(cities, mutation="swap", crossover="ox", selection="tournament")
+    tsp_solver = TSP_GA(cities, mutation="inversion", crossover="pmx", selection="tournament")
     best_cost, best_tour = tsp_solver.solve(
         generations=500,
         pop_size=100,
