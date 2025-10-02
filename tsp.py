@@ -1,5 +1,5 @@
 import numpy as np
-
+from utils.plot import plot_tour, plot_scores
 rng = np.random.default_rng(seed=22)
 def euclid_distance(a, b):
     return np.linalg.norm(a - b)
@@ -39,6 +39,8 @@ class TSP_GA:
         self.best_tour = None
         self.best_cost = np.inf
         self.fitnesses = None
+        self.tolerance = 0
+        self.scores = []
 
     def init_population(self, pop_size=100):
         return np.array([rng.permutation(self.num_cities) for _ in range(pop_size)], dtype=np.int64)
@@ -159,7 +161,7 @@ class TSP_GA:
     def crossover_op(self, par1, par2):
         return getattr(self, f"{self.crossover}")(par1, par2)
     
-    def solve(self, generations=500, pop_size=100, pc=0.9, pm=0.2, elitism=2, use_2opt=True):
+    def solve(self, generations=500, pop_size=100, pc=0.9, pm=0.2, elitism=2, use_2opt=True, reset_ratio=0.5):
         self.population = self.init_population(pop_size)
         costs = np.array([self.cost_computation(t) for t in self.population])
         idx_best = np.argmin(costs)
@@ -169,9 +171,25 @@ class TSP_GA:
         for gen in range(generations):
             self.fitnesses = [self.fitness(pop) for pop in self.population]
             new_pop = []
-            elite_idx = np.argsort([self.fitness(t) for t in self.population])[-elitism:]
-            for i in elite_idx:
-                new_pop.append(self.population[i].copy())
+            elitism_idx = np.argsort(self.fitnesses)[-elitism:]
+            new_pop.extend(self.population[elitism_idx].copy())
+
+            if self.tolerance >= 30:
+                reset_ratio = reset_ratio
+                num_survivors = int((1 - reset_ratio) * pop_size)
+
+                sorted_idx = np.argsort(self.fitnesses)
+                ranks = np.arange(1, len(self.population) + 1)
+                probs = ranks / ranks.sum()
+
+                survivor_idx = rng.choice(sorted_idx, size=num_survivors, replace=False, p=probs)
+                survivors = [self.population[i].copy() for i in survivor_idx]
+
+                newcomers = self.init_population(pop_size=pop_size - num_survivors)
+
+                self.population = survivors + list(newcomers)
+                self.fitnesses = [self.fitness(ind) for ind in self.population]
+                self.tolerance = 0
 
             while len(new_pop) < pop_size:
                 p1 = self.selection_op()
@@ -189,7 +207,6 @@ class TSP_GA:
                 new_pop.extend([c1, c2])
 
             self.population = np.array(new_pop[:pop_size], dtype=np.int64)
-
             if use_2opt:
                 top_idx = np.argsort([self.fitness(t) for t in self.population])[-5:]
                 for i in top_idx:
@@ -197,14 +214,17 @@ class TSP_GA:
 
             costs = np.array([self.cost_computation(t) for t in self.population])
             idx_best = np.argmin(costs)
+            self.tolerance += 1
             if costs[idx_best] < self.best_cost:
                 self.best_cost = costs[idx_best]
                 self.best_tour = self.population[idx_best].copy()
+                self.tolerance = 0
 
             if ((gen + 1) % 10 == 0) or (gen == generations - 1):
                 print(f"Gen {gen+1}: Best cost = {self.best_cost:.2f}")
+                self.scores.append(self.best_cost)
 
-        return self.best_cost, self.best_tour
+        return self.best_cost, self.best_tour, self.scores
     
 
 if __name__ == "__main__":
@@ -212,8 +232,8 @@ if __name__ == "__main__":
     with open(r"tsp_data.tsp", encoding="utf-8") as f:
         for line in f.readlines():
             cities.append(np.array(list(map(int, line.split())))[1:])
-    tsp_solver = TSP_GA(cities, mutation="inversion", crossover="pmx", selection="tournament")
-    best_cost, best_tour = tsp_solver.solve(
+    tsp_solver = TSP_GA(cities, mutation="inversion", crossover="cx", selection="rank")
+    best_cost, best_tour, scores = tsp_solver.solve(
         generations=500,
         pop_size=100,
         pc=0.9,
@@ -225,3 +245,6 @@ if __name__ == "__main__":
     print("\n=== Kết quả cuối cùng ===")
     print("Tổng chiều dài tour:", round(best_cost, 2))
     print("Tour:", best_tour)
+    plot_tour(tour=best_tour, best_score=best_cost, cities=np.array(cities), filename="tsp/best_tour_ipt.png")
+    plot_scores(scores=np.array(scores), filename="tsp/scores_ipt.png")
+    
