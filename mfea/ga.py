@@ -53,30 +53,12 @@ class GA:
             for j, task in enumerate(self.tasks):
                 if off.fitness_tasks[j] == float("inf"):
                     off.fitness_tasks[j] = task.compute_fitness(off.gen)
-
-    # def mutation(self, ind: Individual, eta=7.0) -> Individual:
-    #     new_gen = ind.gen.copy()
-    #     len_gen = len(new_gen)
-    #     u = rng.uniform(size=len_gen)
-    #     delta = np.where(u < 0.5, 
-    #                      (2 * u) ** (1.0 / (eta + 1)) - 1,
-    #                      1 - (2 * (1 - u) ** (1 / (eta + 1))))
-    #     new_gen += delta
-    #     if not self.population.check_valid_gen(new_gen):
-    #         self.population.make_valid_gen(new_gen)
-    #     new_ind = Individual(new_gen, None)
-    #     skill_factor = ind.skill_factor
-    #     new_ind.skill_factor = skill_factor
-    #     fitness_tasks = [float("inf")] * len(self.tasks)
-    #     fitness_tasks[skill_factor] = self.tasks[skill_factor].compute_fitness(new_gen)
-    #     new_ind.fitness_tasks = fitness_tasks
-    #     return new_ind
-    
-    def mutation(self, ind: Individual) -> Individual:
+        
+    def mutation(self, ind: Individual, rate=0.2) -> Individual:
         new_gen = ind.gen.copy()
         len_gen = len(new_gen)
-        idx = rng.choice(range(len_gen))
-        new_gen[idx] = rng.uniform()
+        mask = rng.uniform(size=len_gen) < rate
+        new_gen[mask] = rng.uniform(size=np.sum(mask))
         if not self.population.check_valid_gen(new_gen):
             self.population.make_valid_gen(new_gen)
         new_ind = Individual(new_gen, None)
@@ -86,7 +68,7 @@ class GA:
         fitness_tasks[skill_factor] = self.tasks[skill_factor].compute_fitness(new_gen)
         new_ind.fitness_tasks = fitness_tasks
         return new_ind
-        
+    
     def selection(self):
         self.population.individuals = sorted(self.population.individuals, key=lambda x: x.scalar_fitness)[-self.pop_size:]
 
