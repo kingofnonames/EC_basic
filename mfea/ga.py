@@ -92,5 +92,5 @@ if __name__ == "__main__":
     tasks = []
     tasks.append(TSP())
     tasks.append(Knapsack())
-    g = GA(tasks, pop_size=100, pm=0.1)
+    g = GA(tasks, pop_size=100, pm=0.3)
     g.run()
