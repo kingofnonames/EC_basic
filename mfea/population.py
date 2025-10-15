@@ -23,7 +23,7 @@ class Population:
         for _ in range(self.pop_size):
             gen = rng.uniform(size=self.len_gen)
             if not self.check_valid_gen(gen):
-                self.make_valid_gen(gen)
+                gen = self.make_valid_gen(gen)
             fitness_ta = [task.compute_fitness(gen) for task in self.tasks]
             individuals.append(Individual(gen, fitness_ta))
         self.individuals = individuals
@@ -33,9 +33,11 @@ class Population:
         return all(task.check_valid_gen(gen) for task in self.tasks)
 
     def make_valid_gen(self, gen):
+        gen_valid = gen.copy()
         for task in self.tasks:
-            if not task.check_valid_gen(gen):
-                task.make_valid_gen(gen)
+            if not task.check_valid_gen(gen_valid):
+                gen_valid = task.make_valid_gen(gen_valid)
+        return gen_valid
             
     def update_rank_population(self):
         self._assign_ranks(self.individuals, self.pop_size)
