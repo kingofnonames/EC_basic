@@ -158,31 +158,6 @@ class Knapsack(Task):
                 current_weight -= self.weights[item]
             idx += 1
         return np.clip(gen, 0, 1)
-    # def make_valid_gen(self, ind: Individual):
-    #     gen = ind.gen
-    #     gen_dec = self.decode(gen)
-    #     current_weight = self.sum_weight(gen_dec)
-    #     siz_gen = len(gen)
-    #     siz_win = len(self.window)
-    #     if siz_gen > self.dimension:
-    #         stride, _ = self.stride(siz_gen, siz_win)
-    #     else:
-    #         stride = 1
-    #     idx = 0
-    #     while current_weight > self.capacity and idx < self.dimension:
-    #         item = self.idx_item[idx]
-    #         if gen_dec[item] == 1:
-    #             if siz_gen > self.dimension:
-    #                 start = stride * item
-    #                 gen[start:start+siz_win] *= 0.5
-    #             else:
-    #                 gen[item] *= 0.5
-
-    #             gen_dec[item] = 0
-    #             current_weight -= self.weights[item]
-    #         idx += 1
-
-
     def decode(self, gen: np.ndarray) -> np.ndarray:
         gen_copy = gen.copy()
         siz_gen = len(gen)
