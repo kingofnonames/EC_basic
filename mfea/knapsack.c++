@@ -24,5 +24,16 @@ int main(){
         }
         res_max = max(res_max, res[i][capacity]);
     }
-    cout << res_max;
+    cout << res_max << endl;
+    int w = capacity;
+    vector<int> chosen_items;
+    for(int i = num_items; i >= 1; --i){
+        if (res[i][w] != res[i-1][w]){
+            chosen_items.push_back(i);
+            w -= weights[i];
+        }
+    }
+    reverse(chosen_items.begin(), chosen_items.end());
+    for(int i : chosen_items) cout << i << " ";
+    cout << "\n";
 }

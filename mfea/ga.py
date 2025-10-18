@@ -3,7 +3,24 @@ from mfea.task import Task, TSP, Knapsack
 from mfea.population import Individual, Population
 from typing import List
 from copy import deepcopy
+import matplotlib.pyplot as plt
 rng = np.random.default_rng(seed=22)
+import os
+def plot_scores(scores, title="Best score per generation", filename="/scores.png"):
+    plt.figure(figsize=(6, 6))
+    plt.plot(range(len(scores)), scores, "b-", linewidth=1.5, label="Best score")
+    best_idx = np.argmin(scores)
+    best_val = scores[best_idx]
+    plt.scatter(best_idx, best_val, color="red", zorder=5)
+    plt.text(best_idx, best_val, f"{best_val:.2f}", fontsize=8, color="red", ha="left", va="bottom")
+    plt.title(title)
+    plt.xlabel("Generation")
+    plt.ylabel("Score")
+    plt.legend()
+    plt.grid(False)
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
+    plt.savefig(filename, dpi=300, bbox_inches="tight")
+    plt.show()
 
 class GA:
     def __init__(self, tasks: List[Task], pop_size: int, pm: float, generation: int=200, mutate: str="random"):
@@ -14,6 +31,7 @@ class GA:
         self.generation = generation
         self.best_solution = None
         self.mutate = mutate
+        self.best_scores = [[] * 2]
 
     def run(self, num_child=100):
         num_tasks = len(self.tasks)
@@ -27,8 +45,10 @@ class GA:
                 ind = self.population.get_best_individual_per_task(t)
                 if self.best_solution[t].fitness_tasks[t] > ind.fitness_tasks[t]:
                     self.best_solution[t] = ind
+                self.best_scores[t].append(self.best_solution[t].fitness_tasks[t])
                 if gen % 10 == 0 or gen + 1 == self.generation:
                     print(f"Task {t}: {self.best_solution[t].fitness_tasks[t]}")
+                    self.best_scores.append([])
                     if (t == 1):
                         gen_decoded = self.population.tasks[t].decode(ind.gen)
                         print(f"Decoded solution: {gen_decoded}")
@@ -51,6 +71,8 @@ class GA:
             self.selection()
             # self.re_compute_fitness_for_child(offsprings)
             self.population.update_rank_population()
+        plot_scores(np.array(self.best_scores[0]), filename="./TSP.png")
+        plot_scores(np.array(self.best_scores[1]), filename="./Knapsack.png")
 
 
     def re_compute_fitness_for_child(self, offsprings: List[Individual]):
@@ -59,7 +81,7 @@ class GA:
                 if off.fitness_tasks[j] == float("inf"):
                     off.fitness_tasks[j] = task.compute_fitness(off.gen)
         
-    def random_mutation(self, ind: Individual, rate=0.2) -> Individual:
+    def random_mutation(self, ind: Individual, rate=0.3) -> Individual:
         new_gen = ind.gen.copy()
         len_gen = len(new_gen)
         mask = rng.uniform(size=len_gen) < rate
@@ -88,7 +110,6 @@ class GA:
                 else:
                     delta = 1 - (2 * (1 - u)) ** (1 / (eta + 1))
                 new_gen[i] += delta * (high - low)
-                new_gen[i] = np.clip(new_gen[i], low, high)
         if not self.population.check_valid_gen(new_gen):
             new_gen = self.population.make_valid_gen(new_gen)
         new_ind = Individual(new_gen, None)
@@ -122,5 +143,5 @@ if __name__ == "__main__":
     tasks = []
     tasks.append(TSP())
     tasks.append(Knapsack())
-    g = GA(tasks, pop_size=100, pm=0.3, mutate="random")
+    g = GA(tasks, pop_size=100, pm=0.3, mutate="polynomial")
     g.run()

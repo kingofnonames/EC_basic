@@ -89,7 +89,7 @@ class TSP(Task):
             gen_copy = gen.copy()
         idx = 0
         for i in range(0, siz_gen, stride):
-            gen_real_dec[idx] = np.sum(gen_copy[i:i+siz_window])
+            gen_real_dec[idx] = np.sum(gen_copy[i:i+siz_window] * self.window) 
             idx += 1
         gen_dec = np.argsort(gen_real_dec)
         return gen_dec
@@ -132,16 +132,17 @@ class Knapsack(Task):
         gen_dec = self.decode(gen)
         weight = self.sum_weight(gen_dec)
         return weight <= self.capacity
-    
     def make_valid_gen(self, gen: np.ndarray) -> np.ndarray:
         gen_dec = self.decode(gen)
         current_weight = self.sum_weight(gen_dec)
         siz_gen = len(gen)
         siz_win = len(self.window)
+
         if siz_gen > self.dimension:
             stride, _ = self.stride(siz_gen, siz_win)
         else:
             stride = 1
+
         idx = 0
         while current_weight > self.capacity and idx < self.dimension:
             item = self.idx_item[idx]
@@ -150,14 +151,58 @@ class Knapsack(Task):
                     start = stride * item
                     end = min(start + siz_win, siz_gen)
                     for i in range(start, end):
-                        gen[i] = 0.5 / (siz_win * max(self.window))
+                        gen[i] = (0.5 / (siz_win * max(self.window))) * rng.uniform(0.3, 0.7)
                 else:
-                    gen[item] -= 0.5
-
-                gen_dec[item] = 0
-                current_weight -= self.weights[item]
+                    gen[item] = 0.5 * rng.uniform(0.3, 0.7)
+                
+                gen_dec = self.decode(gen)
+                current_weight = self.sum_weight(gen_dec)
             idx += 1
-        return np.clip(gen, 0, 1)
+        return gen
+    # def make_valid_gen(self, gen: np.ndarray) -> np.ndarray:
+    #     siz_gen = len(gen)
+    #     siz_win = len(self.window)
+    #     gen_dec = self.decode(gen)
+    #     current_weight = self.sum_weight(gen_dec)
+    #     stride, _ = self.stride(siz_gen, siz_win) if siz_gen > self.dimension else (1, 0)
+    #     while current_weight > self.capacity:
+    #         for item in self.idx_item:
+    #             if gen_dec[item] == 1:
+    #                 start = item * stride
+    #                 end = min(start + siz_win, siz_gen)
+    #                 gen[start:end] = 0
+    #             else:
+    #                 gen[item] = 0.5 * rng.uniform(0.1, 0.7)
+    #             gen_dec[item] = 0
+    #             current_weight -= self.weights[item]
+    #             break
+        # if current_weight <= self.capacity:
+        #     return gen
+        # siz_gen = len(gen)
+        # siz_win = len(self.window)
+        # if siz_gen > self.dimension:
+        #     stride, _ = self.stride(siz_gen, siz_win)
+        # else:
+        #     stride = 1
+        # idx = 0
+        # while current_weight > self.capacity and idx < self.dimension:
+        #     item = self.idx_item[idx]
+        #     if gen_dec[item] == 1:
+        #         if siz_gen > self.dimension:
+        #             start = stride * item
+        #             end = min(start + siz_win, siz_gen)
+        #             dis = (end - start + 7)
+        #             for i in range(start, end):
+        #                 gen[i] = 0.5 / (siz_win * max(self.window))
+        #                 # gen[i] -= 0.5
+        #         else:
+        #             gen[item] -= 0.5
+
+        #         gen_dec[item] = 0
+        #         current_weight -= self.weights[item]
+        #     idx += 1
+        # return gen
+    
     def decode(self, gen: np.ndarray) -> np.ndarray:
         gen_copy = gen.copy()
         siz_gen = len(gen)
