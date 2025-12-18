@@ -733,16 +733,19 @@ class MFEA:
         )
 
         return sol, best.factorial_costs[0], hist_mdr, hist_gcp
+    
 if __name__ == "__main__":
     random.seed(42)
     np.random.seed(42)
 
-    mtx_file = "../data/DROMD/dwt__419.mtx"
+    mtx_file = 'E:\EC_basic\data\DROMD\dwt__361.mtx'
     G = load_mtx_graph(mtx_file)
 
     tasks = MFEA_Tasks(G)
     mfea = MFEA(tasks, pop_size=150, generations=200, n_jobs=4)
 
     sol, best_cost, hist_mdr, hist_gcp = mfea.run()
+
+    print(sol)
 
     print("\nFINAL MDR COST:", best_cost)
