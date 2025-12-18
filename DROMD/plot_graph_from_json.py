@@ -5,7 +5,7 @@ from matplotlib.ticker import MaxNLocator
 from pathlib import Path
 
 
-results_folder = Path(__file__).parent / 'results'
+results_folder = Path(__file__).parent / 'results_mfea2'
 files = list(results_folder.glob('*.json'))
 save_dir = results_folder / 'graph'
 save_dir.mkdir(parents=True, exist_ok=True)
@@ -35,7 +35,7 @@ for file in files:
                         color='#FF9848', alpha=0.5, label='Standard Deviation')
     ax_mdr.xaxis.set_major_locator(MaxNLocator(integer=True))
     ax_mdr.yaxis.set_major_locator(MaxNLocator(integer=True))
-    ax_mdr.set_title(f'MDR Aggregated Convergence: {dataset_name}\nMin best mean: {final_mean_mdr:.0f}')
+    ax_mdr.set_title(f"MDR Aggregated Convergence: {dataset_name}\nBest val: {data['best_mdr']:.0f}")
     ax_mdr.set_xlabel('Generation')
     ax_mdr.set_ylabel('Best Fitness')
     ax_mdr.legend()
@@ -48,7 +48,7 @@ for file in files:
                         color='#FF9848', alpha=0.5, label='Standard Deviation')
     ax_gcp.xaxis.set_major_locator(MaxNLocator(integer=True))
     ax_gcp.yaxis.set_major_locator(MaxNLocator(integer=True))
-    ax_gcp.set_title(f'GCP Aggregated Convergence: {dataset_name}\nMin best mean: {final_mean_gcp:.0f}')
+    ax_gcp.set_title(f"GCP Aggregated Convergence: {dataset_name}\nBest val: {data['best_gcp']:.0f}")
     ax_gcp.set_xlabel('Generation')
     ax_gcp.set_ylabel('Best Fitness')
     ax_gcp.legend()
