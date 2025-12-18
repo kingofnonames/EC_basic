@@ -1,4 +1,3 @@
-
 import os
 import random
 import numpy as np
@@ -288,7 +287,7 @@ class MFEA:
             hist_gcp.append(min(i.factorial_costs[1] for i in self.population))
 
             if gen % 10 == 0:
-                print(f"Gen {gen}: MDR={hist_mdr[-1]} | RMP={self.rmp_dynamic:.2f}")
+                print(f"Gen {gen}: MDR={hist_mdr[-1]} | GCP={hist_gcp[-1]} | RMP={self.rmp_dynamic:.2f}")
 
         best = min(
             [i for i in self.population if i.skill_factor == 0],
