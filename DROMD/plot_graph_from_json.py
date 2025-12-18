@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 results_folder = Path(__file__).parent / 'results'
-files = files = list(results_folder.glob('*.json'))
+files = list(results_folder.glob('*.json'))
 save_dir = results_folder / 'graph'
 save_dir.mkdir(parents=True, exist_ok=True)
 for file in files:
