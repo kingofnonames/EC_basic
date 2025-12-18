@@ -50,12 +50,11 @@ class MFEA_Tasks:
             val = sol[u]
             nbr_vals = [sol[v] for v in self.adj[u]]
 
-            c1 = nbr_vals.count(1)
             c2 = nbr_vals.count(2)
             c3 = nbr_vals.count(3)
 
             if val == 0:
-                if not (c3 >= 1 or c2 >= 2 or (c2 >= 1 and c1 >= 1)):
+                if not (c3 >= 1 or c2 >= 2):
                     return False
 
             elif val == 1:
@@ -75,11 +74,10 @@ class MFEA_Tasks:
             nbrs = self.adj[u]
             vals = [repaired[v] for v in nbrs]
 
-            c1 = vals.count(1)
             c2 = vals.count(2)
             c3 = vals.count(3)
 
-            if c3 >= 1 or c2 >= 2 or (c2 >= 1 and c1 >= 1):
+            if c3 >= 1 or c2 >= 2:
                 continue
 
             if c2 >= 1:
@@ -395,6 +393,7 @@ def run_experiment_on_file(
     print(f"BEST MDR = {best_mdr}")
     print(f"BEST GCP = {best_gcp}")
     print(f"→ Đã lưu kết quả vào {output_file}\n")
+    print(final_sol)
 
     return output_file
 
@@ -402,6 +401,6 @@ def run_experiment_on_file(
 
 if __name__ == "__main__":
     # mtx_files = ["../data/DROMD/lshp1009.mtx"]
-    mtx_files = ["../data/DROMD/662_bus.mtx"]
+    mtx_files = ['E:\EC_basic\data\DROMD\dwt__361.mtx']
     for file in mtx_files:
         run_experiment_on_file(file)
