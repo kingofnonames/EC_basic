@@ -8,7 +8,6 @@ import json
 from joblib import Parallel, delayed
 from collections import OrderedDict
 
-# ================= LOAD GRAPH =================
 def load_mtx_graph(filepath):
     print(f"-> Đang đọc file: {filepath}...")
     sparse_matrix = mmread(filepath)
@@ -27,31 +26,18 @@ def load_mtx_graph(filepath):
     print(f"-> Graph: {G.number_of_nodes()} nodes, {G.number_of_edges()} edges")
     return G
 
-
-# ================= TASKS =================
 class MFEA_Tasks:
     def __init__(self, graph, max_cache_size=50000):
         self.G = graph
         self.nodes = list(graph.nodes())
         self.n = len(self.nodes)
         self.idx2node = dict(enumerate(self.nodes))
-
         self.adj = {u: np.fromiter(graph.neighbors(u), dtype=np.int32)
                     for u in self.nodes}
         self.deg = {u: len(self.adj[u]) for u in self.nodes}
-
         self.mdr_cache = OrderedDict()
         self.max_cache_size = max_cache_size
-
-    # ---------- MDR ----------
-    # def decode_mdr(self, genotype):
-    #     labels = np.zeros(self.n, dtype=np.int8)
-    #     labels[genotype >= 0.6] = 2
-    #     labels[genotype >= 0.85] = 3
-    #     # labels[(genotype >= 0.5) & (genotype < 0.6)] = 1
-    #     # labels[(genotype >= 0.6) & (genotype < 0.85)] = 2
-    #     # labels[genotype >= 0.85] = 3
-    #     return dict(zip(self.nodes, labels))
+        
     def decode_mdr(self, genotype):
         labels = np.zeros(self.n, dtype=np.int8)
         labels[(genotype >= 0.45) & (genotype < 0.6)] = 1
@@ -97,11 +83,9 @@ class MFEA_Tasks:
             if c3 >= 1 or c2 >= 2 or (c2 >= 1 and c1 >= 1):
                 continue
 
-            # ưu tiên nâng 0 → 1 trước
             if c2 >= 1:
                 repaired[u] = 1
             else:
-                # nâng hàng xóm degree cao nhất
                 cand = max(nbrs, key=lambda x: self.deg[x])
                 repaired[cand] = max(repaired[cand], 2)
 
@@ -144,7 +128,6 @@ class MFEA_Tasks:
 
         return cost
 
-    # ---------- GCP ----------
     def calculate_gcp_cost(self, genotype):
         order = np.argsort(genotype)[::-1]
         colors = {}
@@ -158,7 +141,6 @@ class MFEA_Tasks:
         return len(set(colors.values()))
 
 
-# ================= INDIVIDUAL =================
 class Individual:
     __slots__ = ("genotype", "skill_factor", "factorial_costs", "scalar_fitness")
 
@@ -169,7 +151,6 @@ class Individual:
         self.scalar_fitness = 0.0
 
 
-# ================= MFEA-II =================
 class MFEA:
     def __init__(self, tasks, pop_size=100, generations=100,
                  rmp=0.6, rmm=0.1, n_jobs=1):
@@ -187,7 +168,6 @@ class MFEA:
 
         self.population = []
 
-    # ---------- EVALUATION ----------
     def evaluate_individual(self, ind):
         c0 = self.tasks.calculate_mdr_cost(ind.genotype) \
             if ind.skill_factor in (None, 0) else float("inf")
@@ -206,7 +186,6 @@ class MFEA:
             for ind in pop:
                 ind.factorial_costs = list(self.evaluate_individual(ind))
 
-    # ---------- FITNESS ----------
     def assign_scalar_fitness(self):
         for ind in self.population:
             ind.scalar_fitness = 0.0
@@ -225,11 +204,9 @@ class MFEA:
         for r, ind in enumerate(pop_gcp):
             ind.scalar_fitness = max(ind.scalar_fitness, 1.0 / (r + 1))
 
-    # ---------- MFEA-II TRANSFER ----------
     def can_transfer(self, p1, p2):
         if p1.skill_factor == p2.skill_factor:
             return True
-        # ONLY GCP → MDR
         if {p1.skill_factor, p2.skill_factor} == {0, 1}:
             return random.random() < self.rmp_dynamic
         return False
@@ -265,7 +242,6 @@ class MFEA:
 
         return c1, c2
 
-    # ---------- RUN ----------
     def run(self):
         self.population = [Individual(self.dim) for _ in range(self.pop_size)]
         for ind in self.population:
@@ -294,7 +270,6 @@ class MFEA:
             else:
                 self.fail_transfer += 1
 
-            # adaptive RMP
             if self.success_transfer + self.fail_transfer > 5:
                 ratio = self.success_transfer / (self.success_transfer + self.fail_transfer)
                 if ratio < 0.3:
@@ -328,21 +303,106 @@ class MFEA:
         return sol, best.factorial_costs[0], hist_mdr, hist_gcp
 
 
-# ================= RUN =================
 def set_global_seed(seed):
     random.seed(seed)
     np.random.seed(seed)
 
-def run_experiment_on_file(mtx_file):
+def run_experiment_on_file(
+    mtx_file,
+    seeds=[223, 42, 77],
+    pop_size=100,
+    generations=200,
+    rmp=0.6,
+    n_jobs=4,
+    output_folder="./results_mfea2"
+):
+    file_name = os.path.basename(mtx_file)
     G = load_mtx_graph(mtx_file)
+    if G is None:
+        print("❌ Không load được graph")
+        return None
+
+    print(f"\n=== BẮT ĐẦU CHẠY FILE: {file_name} ===")
+    print(f"Nodes: {G.number_of_nodes()}, Edges: {G.number_of_edges()}")
+
     tasks = MFEA_Tasks(G)
-    mfea = MFEA(tasks, pop_size=100, generations=300, rmp=0.6, n_jobs=4)
-    sol, cost, hist_mdr, _ = mfea.run()
-    print("FINAL MDR =", cost)
+
+    results = []
+    all_hist_mdr = []
+    all_hist_gcp = []
+
+    best_mdr = float("inf")
+    best_gcp = float("inf")
+
+    for seed in seeds:
+        print(f"\n>>> Chạy với seed = {seed}")
+        set_global_seed(seed)
+
+        mfea = MFEA(
+            tasks,
+            pop_size=pop_size,
+            generations=generations,
+            rmp=rmp,
+            n_jobs=n_jobs
+        )
+
+        final_sol, final_weight, hist_mdr, hist_gcp = mfea.run()
+
+        hist_mdr = list(map(float, hist_mdr))
+        hist_gcp = list(map(float, hist_gcp))
+
+        results.append({
+            "seed": seed,
+            "final_mdr": float(final_weight),
+            "history_mdr": hist_mdr,
+            "history_gcp": hist_gcp
+        })
+
+        all_hist_mdr.append(hist_mdr)
+        all_hist_gcp.append(hist_gcp)
+
+        best_mdr = min(best_mdr, final_weight)
+        best_gcp = min(best_gcp, min(hist_gcp))
+
+        print(f"Seed {seed} → FINAL MDR = {final_weight}")
+
+    arr_mdr = np.array(all_hist_mdr)
+    arr_gcp = np.array(all_hist_gcp)
+
+    summary = {
+        "file": file_name,
+        "num_nodes": G.number_of_nodes(),
+        "num_edges": G.number_of_edges(),
+        "pop_size": pop_size,
+        "generations": generations,
+        "rmp_init": rmp,
+        "seeds": seeds,
+        "best_mdr": float(best_mdr),
+        "best_gcp": float(best_gcp),
+        "mean_mdr": np.mean(arr_mdr, axis=0).tolist(),
+        "var_mdr": np.var(arr_mdr, axis=0).tolist(),
+        "mean_gcp": np.mean(arr_gcp, axis=0).tolist(),
+        "var_gcp": np.var(arr_gcp, axis=0).tolist(),
+        "runs": results
+    }
+
+    os.makedirs(output_folder, exist_ok=True)
+    output_file = os.path.join(output_folder, f"{file_name}.json")
+
+    with open(output_file, "w", encoding="utf-8") as f:
+        json.dump(summary, f, indent=2, ensure_ascii=False)
+
+    print("\n=== TỔNG KẾT FILE", file_name, "===")
+    print(f"BEST MDR = {best_mdr}")
+    print(f"BEST GCP = {best_gcp}")
+    print(f"→ Đã lưu kết quả vào {output_file}\n")
+
+    return output_file
+
 
 
 if __name__ == "__main__":
-    mtx_files = ["../data/DROMD/lshp1009.mtx"]
-    # mtx_files = ["../data/DROMD/ash85.mtx"]
+    # mtx_files = ["../data/DROMD/lshp1009.mtx"]
+    mtx_files = ["../data/DROMD/662_bus.mtx"]
     for file in mtx_files:
         run_experiment_on_file(file)
