@@ -431,6 +431,7 @@ import networkx as nx
 from scipy.io import mmread
 from collections import OrderedDict
 from joblib import Parallel, delayed
+
 def load_mtx_graph(filepath):
     print(f"-> Đang đọc file: {filepath}...")
     sparse_matrix = mmread(filepath)
@@ -448,6 +449,7 @@ def load_mtx_graph(filepath):
     G = nx.convert_node_labels_to_integers(G)
     print(f"-> Graph: {G.number_of_nodes()} nodes, {G.number_of_edges()} edges")
     return G
+
 class MFEA_Tasks:
     def __init__(self, graph, max_cache_size=50000):
         self.G = graph
@@ -478,15 +480,12 @@ class MFEA_Tasks:
             t1, t2, t3 = 0.55, 0.70, 0.85
         else:
             t1, t2, t3 = 0.60, 0.75, 0.88
-
         for i, u in enumerate(self.nodes):
             g = genotype[i]
             w = self.norm_deg[u]
-
             a1 = t1 - 0.10 * w
             a2 = t2 - 0.10 * w
             a3 = t3 - 0.05 * w
-
             if g >= a3:
                 labels[i] = 3
             elif g >= a2:
@@ -495,7 +494,6 @@ class MFEA_Tasks:
                 labels[i] = 1
             else:
                 labels[i] = 0
-
         return dict(zip(self.nodes, labels))
     
     def init_genotype(self, mode="mixed"):
@@ -733,16 +731,97 @@ class MFEA:
         )
 
         return sol, best.factorial_costs[0], hist_mdr, hist_gcp
-if __name__ == "__main__":
-    random.seed(42)
-    np.random.seed(42)
+# if __name__ == "__main__":
+#     random.seed(42)
+#     np.random.seed(42)
 
-    mtx_file = "../data/DROMD/dwt__419.mtx"
+#     mtx_file = "../data/DROMD/dwt__419.mtx"
+#     G = load_mtx_graph(mtx_file)
+
+#     tasks = MFEA_Tasks(G)
+#     mfea = MFEA(tasks, pop_size=150, generations=200, n_jobs=4)
+
+#     sol, best_cost, hist_mdr, hist_gcp = mfea.run()
+
+#     print("\nFINAL MDR COST:", best_cost)
+
+def set_global_seed(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+
+def run_experiment_on_file(
+    mtx_file,
+    seeds=[223, 42, 77],
+    pop_size=150,
+    generations=200,
+    rmp=0.6,
+    n_jobs=4,
+    output_folder="./results_mfea2"
+):
+    file_name = os.path.basename(mtx_file)
     G = load_mtx_graph(mtx_file)
+    if G is None:
+        print("Không load được graph")
+        return None
+    print(f"\n=== BẮT ĐẦU CHẠY FILE: {file_name} ===")
+    print(f"Nodes: {G.number_of_nodes()}, Edges: {G.number_of_edges()}")
 
     tasks = MFEA_Tasks(G)
-    mfea = MFEA(tasks, pop_size=150, generations=200, n_jobs=4)
+    results = []
+    all_hist_mdr = []
+    all_hist_gcp = []
+    best_mdr = float("inf")
+    best_gcp = float("inf")
 
-    sol, best_cost, hist_mdr, hist_gcp = mfea.run()
+    for seed in seeds:
+        print(f"\n>>> Chạy với seed = {seed}")
+        set_global_seed(seed)
+        mfea = MFEA(tasks, pop_size=pop_size, generations=generations, rmp=rmp, n_jobs=n_jobs)
+        final_sol, final_weight, hist_mdr, hist_gcp = mfea.run()
+        hist_mdr = list(map(float, hist_mdr))
+        hist_gcp = list(map(float, hist_gcp))
+        results.append({
+            "seed": seed,
+            "final_mdr": float(final_weight),
+            "history_mdr": hist_mdr,
+            "history_gcp": hist_gcp
+        })
+        all_hist_mdr.append(hist_mdr)
+        all_hist_gcp.append(hist_gcp)
+        best_mdr = min(best_mdr, final_weight)
+        best_gcp = min(best_gcp, min(hist_gcp))
+        print(f"Seed {seed} → FINAL MDR = {final_weight}")
 
-    print("\nFINAL MDR COST:", best_cost)
+    arr_mdr = np.array(all_hist_mdr)
+    arr_gcp = np.array(all_hist_gcp)
+    summary = {
+        "file": file_name,
+        "num_nodes": G.number_of_nodes(),
+        "num_edges": G.number_of_edges(),
+        "pop_size": pop_size,
+        "generations": generations,
+        "rmp_init": rmp,
+        "seeds": seeds,
+        "best_mdr": float(best_mdr),
+        "best_gcp": float(best_gcp),
+        "mean_mdr": np.mean(arr_mdr, axis=0).tolist(),
+        "var_mdr": np.var(arr_mdr, axis=0).tolist(),
+        "mean_gcp": np.mean(arr_gcp, axis=0).tolist(),
+        "var_gcp": np.var(arr_gcp, axis=0).tolist(),
+        "runs": results
+    }
+
+    os.makedirs(output_folder, exist_ok=True)
+    output_file = os.path.join(output_folder, f"{file_name}.json")
+    with open(output_file, "w", encoding="utf-8") as f:
+        json.dump(summary, f, indent=2, ensure_ascii=False)
+    print("\n=== TỔNG KẾT FILE", file_name, "===")
+    print(f"BEST MDR = {best_mdr}")
+    print(f"BEST GCP = {best_gcp}")
+    print(f"→ Đã lưu kết quả vào {output_file}\n")
+    return output_file
+
+if __name__ == "__main__":
+    mtx_files = ["../data/DROMD/can___61.mtx"]
+    for file in mtx_files:
+        run_experiment_on_file(file)
