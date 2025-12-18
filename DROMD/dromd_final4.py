@@ -542,8 +542,14 @@ class MFEA_Tasks:
             if repaired[u] != 0:
                 continue
 
-            vals = [repaired[v] for v in self.adj[u]]
-            if vals.count(3) >= 1 or vals.count(2) >= 2:
+            nbrs = self.adj[u]
+            vals = [repaired[v] for v in nbrs]
+
+            c1 = vals.count(1)
+            c2 = vals.count(2)
+            c3 = vals.count(3)
+
+            if c3 >= 1 or c2 >= 2 or (c2 >= 1 and c1 >= 1):
                 continue
 
             if vals.count(2) >= 1:
@@ -735,10 +741,83 @@ if __name__ == "__main__":
     G = load_mtx_graph(mtx_file)
 
     tasks = MFEA_Tasks(G)
-    mfea = MFEA(tasks, pop_size=150, generations=200, n_jobs=4)
 
-    sol, best_cost, hist_mdr, hist_gcp = mfea.run()
+    results = []
+    all_hist_mdr = []
+    all_hist_gcp = []
 
-    print("\nFINAL MDR COST:", best_cost)
+    best_mdr = float("inf")
+    best_gcp = float("inf")
+
+    for seed in seeds:
+        print(f"\n>>> Chạy với seed = {seed}")
+        set_global_seed(seed)
+
+        mfea = MFEA(
+            tasks,
+            pop_size=pop_size,
+            generations=generations,
+            rmp=rmp,
+            n_jobs=n_jobs
+        )
+
+        final_sol, final_weight, hist_mdr, hist_gcp = mfea.run()
+
+        hist_mdr = list(map(float, hist_mdr))
+        hist_gcp = list(map(float, hist_gcp))
+
+        results.append({
+            "seed": seed,
+            "final_mdr": float(final_weight),
+            "history_mdr": hist_mdr,
+            "history_gcp": hist_gcp
+        })
+
+        all_hist_mdr.append(hist_mdr)
+        all_hist_gcp.append(hist_gcp)
+
+        best_mdr = min(best_mdr, final_weight)
+        best_gcp = min(best_gcp, min(hist_gcp))
+
+        print(f"Seed {seed} → FINAL MDR = {final_weight}")
+
+    arr_mdr = np.array(all_hist_mdr)
+    arr_gcp = np.array(all_hist_gcp)
+
+    summary = {
+        "file": file_name,
+        "num_nodes": G.number_of_nodes(),
+        "num_edges": G.number_of_edges(),
+        "pop_size": pop_size,
+        "generations": generations,
+        "rmp_init": rmp,
+        "seeds": seeds,
+        "best_mdr": float(best_mdr),
+        "best_gcp": float(best_gcp),
+        "mean_mdr": np.mean(arr_mdr, axis=0).tolist(),
+        "var_mdr": np.var(arr_mdr, axis=0).tolist(),
+        "mean_gcp": np.mean(arr_gcp, axis=0).tolist(),
+        "var_gcp": np.var(arr_gcp, axis=0).tolist(),
+        "runs": results
+    }
+
+    os.makedirs(output_folder, exist_ok=True)
+    output_file = os.path.join(output_folder, f"{file_name}.json")
+
+    with open(output_file, "w", encoding="utf-8") as f:
+        json.dump(summary, f, indent=2, ensure_ascii=False)
+
+    print("\n=== TỔNG KẾT FILE", file_name, "===")
+    print(f"BEST MDR = {best_mdr}")
+    print(f"BEST GCP = {best_gcp}")
+    print(f"→ Đã lưu kết quả vào {output_file}\n")
+
+    return output_file
 
 
+
+if __name__ == "__main__":
+    # mtx_files = ["../data/DROMD/lshp1009.mtx"]
+    mtx_files = ["../data/DROMD/662_bus.mtx"]
+    for file in mtx_files:
+        run_experiment_on_file(file)
