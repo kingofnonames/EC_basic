@@ -5,7 +5,7 @@ from matplotlib.ticker import MaxNLocator
 from pathlib import Path
 
 
-results_folder = Path(__file__).parent / 'results'
+results_folder = Path(__file__).parent / 'results_mfea2'
 files = list(results_folder.glob('*.json'))
 save_dir = results_folder / 'graph'
 save_dir.mkdir(parents=True, exist_ok=True)
@@ -17,25 +17,25 @@ for file in files:
     mean_mdr = np.array(data['mean_mdr'])
     var_mdr = np.array(data['var_mdr'])
     std_mdr = np.sqrt(var_mdr)
-    final_mean_mdr = mean_mdr[-1]
+    final_mean_mdr = int(data['best_mdr'])
 
     mean_gcp = np.array(data['mean_gcp'])
     var_gcp = np.array(data['var_gcp'])
     std_gcp = np.sqrt(var_gcp)
-    final_mean_gcp = mean_gcp[-1]
+    final_mean_gcp = int(data['best_gcp'])
 
     generations = np.arange(len(mean_mdr))
 
     fig, (ax_mdr, ax_gcp) = plt.subplots(1, 2, figsize=(14, 5))
 
-    ax_mdr.plot(generations, mean_mdr, color='#CC4F1B', linewidth=2, label='Mean Best Fitness')
+    ax_mdr.plot(generations, mean_mdr, color='#CC4F1B', linewidth=2, label='Best Fitness')
     ax_mdr.fill_between(generations, 
                         mean_mdr - std_mdr, 
                         mean_mdr + std_mdr, 
                         color='#FF9848', alpha=0.5, label='Standard Deviation')
     ax_mdr.xaxis.set_major_locator(MaxNLocator(integer=True))
     ax_mdr.yaxis.set_major_locator(MaxNLocator(integer=True))
-    ax_mdr.set_title(f'MDR Aggregated Convergence: {dataset_name}\nMin best mean: {final_mean_mdr:.0f}')
+    ax_mdr.set_title(f'MDR Aggregated Convergence: {dataset_name}\nMin best: {final_mean_mdr:.0f}')
     ax_mdr.set_xlabel('Generation')
     ax_mdr.set_ylabel('Best Fitness')
     ax_mdr.legend()
@@ -48,7 +48,7 @@ for file in files:
                         color='#FF9848', alpha=0.5, label='Standard Deviation')
     ax_gcp.xaxis.set_major_locator(MaxNLocator(integer=True))
     ax_gcp.yaxis.set_major_locator(MaxNLocator(integer=True))
-    ax_gcp.set_title(f'GCP Aggregated Convergence: {dataset_name}\nMin best mean: {final_mean_gcp:.0f}')
+    ax_gcp.set_title(f'GCP Aggregated Convergence: {dataset_name}\nMin best: {final_mean_gcp:.0f}')
     ax_gcp.set_xlabel('Generation')
     ax_gcp.set_ylabel('Best Fitness')
     ax_gcp.legend()
